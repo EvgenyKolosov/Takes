@@ -11,7 +11,7 @@ GBPUSD$dates <- unique(GBPUSD$dates)
 # Также получает величину окна и стоп лосс
 # Выдаёт величину тейк профита  
 e<- new.env()
-optimum_take_profit <- function(prices, signals, window, Stop_Loss, forall = FALSE){
+optimum_take_profit <- function(prices, signals, window, Stop_Loss, forall = FALSE, pr_of_success = 0.25){
   
   trade_times <- which(signals != 0)        # Моменты когда были сигналы на вход
   trade_times <- trade_times[trade_times <= length(prices) - window]  
@@ -43,7 +43,7 @@ optimum_take_profit <- function(prices, signals, window, Stop_Loss, forall = FAL
   loses <- 1 # Зачем-то они мне были нужны. Пусть будут
   
   t_L <- window
-  for(i in trade_times){     #t_L -- время до лося внутри окна(= длине окна, если лось не достигается)
+  for(i in trade_times){     #t_L -- число свечек до лося внутри окна(= длине окна, если лось не достигается)
     if(signals[i] == 1){
       
       if(any(prices[i:(i+window-1)] - prices[i] <= Stop_Loss)){
@@ -81,16 +81,16 @@ optimum_take_profit <- function(prices, signals, window, Stop_Loss, forall = FAL
   # В скольки процентах трейдов достигалась MP(i)? -- pr_of_attain
   pr_of_attain <- (length(trade_times) - c(0,cumsum(nums))[-N-1]) / length(trade_times)
   
-  k<- sum(pr_of_attain >= 0.25) # Сколько достигли 20%  (это же есть номер максимального MP(k), 
-  # который встречался чаще 20% в силу монотонности
+  k<- sum(pr_of_attain >= pr_of_success) # Сколько сделок достигло 25%  (это же есть номер максимального MP(k), 
+  # который встречался чаще 25% (в силу монотонности) )
   
   returns <- sort(unique(MP)) * (length(trade_times) - cumsum(c(0,nums))[-N-1]) +   # Функция доходности в случае
     cumsum(c(0,nums))[-N-1] *  c(0, cumsum(losts) / cumsum(nums))[-N-1]             # когда ТП = MP(i)
   # 0 нужен, ибо есть MP(1)=0
   
-  #print(max(returns[2:k]))                                 # Выбираю лишь те тейки, которые встречаются не очень редко
-  Take_Profit <- sort(unique(MP))[which.max(returns[1:k])] # не 1:k , чтоб нолик не дропался
-  return(c(Take_Profit,max(returns[1:k])))   # Нунжно для оптимизации
+  #print(max(returns[1:k]))                                 # Выбираю лишь те тейки, которые встречаются не очень редко
+  Take_Profit <- sort(unique(MP))[which.max(returns[1:k])] 
+  return(c(Take_Profit,max(returns[1:k])))                  # Нунжно для оптимизации
 }
 
 bb_signals_GBP <- BBands(GBPUSD$mat$close[1:(350000)], n=20, nsd = 2, matype = EMA)
@@ -241,7 +241,7 @@ EURUSD <- list()
 {
   EURUSD[[1]] <- Data() %>%
     modify(period = 1,
-           from =  as.POSIXct("2016-01-01"),
+           from =  as.POSIXct("2012-01-01"),
            to = as.POSIXct("2021-04-01")) %>%
     stock('EURUSD',
           src = 'Finam') %>%
@@ -249,7 +249,7 @@ EURUSD <- list()
   
   EURUSD[[2]] <- Data() %>%
     modify(period = 5,
-           from =  as.POSIXct("2016-01-01"),
+           from =  as.POSIXct("2012-01-01"),
            to = as.POSIXct("2021-04-01")) %>%
     stock('EURUSD',
           src = 'Finam') %>%
@@ -257,7 +257,7 @@ EURUSD <- list()
   
   EURUSD[[3]] <- Data() %>%
     modify(period = 15,
-           from =  as.POSIXct("2015-01-01"),
+           from =  as.POSIXct("2012-01-01"),
            to = as.POSIXct("2021-04-01")) %>%
     stock('EURUSD',
           src = 'Finam') %>%
@@ -265,7 +265,7 @@ EURUSD <- list()
   
   EURUSD[[4]] <- Data() %>%
     modify(period = 30,
-           from =  as.POSIXct("2014-01-01"),
+           from =  as.POSIXct("2012-01-01"),
            to = as.POSIXct("2021-04-01")) %>%
     stock('EURUSD',
           src = 'Finam') %>%
@@ -273,7 +273,7 @@ EURUSD <- list()
   
   EURUSD[[5]] <- Data() %>%
     modify(period = 60,
-           from =  as.POSIXct("2013-01-01"),
+           from =  as.POSIXct("2012-01-01"),
            to = as.POSIXct("2021-04-01")) %>%
     stock('EURUSD',
           src = 'Finam') %>%
@@ -288,7 +288,7 @@ EURUSD <- list()
     getSymbols
 }
 
-for(k in 1:6){
+for(k in 1:1){
   EURUSD[[k]]$dates <- EURUSD[[k]]$dates[!is.na(EURUSD[[k]]$mat$close)]
   EURUSD[[k]]$mat$close <- (EURUSD[[k]]$mat$close[!is.na(EURUSD[[k]]$mat$close)])
   
@@ -304,6 +304,7 @@ rm(EURUSD)
 
 # EURUSD_DATA[[k]] -- данные по EURUSD в c(1,5,15,30,60,240)[k]-m таймфрейме + прогнозы по стратегиям
 
+EURUSD_DATA[[2]] %>% View()
 
 # Далее - Подбор оптимального стоп лосса и тейкпрофита (по 2 шт: оптимальный и оптимальный с частым достижением)
 
@@ -325,7 +326,7 @@ STRATAGY_DATA <- data.frame(Currency = rep("EURUSD",nrowws),   # Это буде
 )
 
 
-repor <- data.frame()
+repor <- data.frame() # временное хранилище getReport(this)
 pnl.max <- 0
 tmp_res <- c(0,0)
 res <- 0
@@ -361,6 +362,9 @@ system.time(
       x <- EURUSD_DATA[[TF_number]][,2]                        
       dataa <- data_from_xts(xts(x, EURUSD_DATA[[TF_number]][,1])) 
       
+      st_l <- stop_loss          # st_l и take_pr - это параметры внутри стратегии
+      take_pr <- take_profit
+      
       setParams(this,
                 predicted_value = EURUSD_DATA[[TF_number]][,2 + str_number],    
                 max_bars = window)
@@ -382,9 +386,65 @@ STRATAGY_DATA$Time_Frame <- rep(c(1,5,15,30,60,240), each = 2)
 
 STRATAGY_DATA %>% View() 
 
+#------------------------------------------------------------------------------------------------------------------------
+# Проблема - маленькие стоп лоссы "оптимальны " на больших ТФ -- из-за отсутствия промежуточных цен между свечками 
+# (Проскальзывание не учитывается)
+# Идея решения - перенести сигналы с больших ТФ на 1-минутный ТФ, а на них уже оптимизировать стопы и тейки
 
 
-for(i in seq(0.0001, 0.0051, by=0.0001)) print(optimum_take_profit(EURUSD_DATA[[6]][,2],
-                                                                   EURUSD_DATA[[6]][,4], 20, -i, T))
+EURUSD_DATA[[1]] <- cbind.data.frame(EURUSD_DATA[[1]],
+                                     BB_signals_5 = rep(0, nrow(EURUSD_DATA[[1]])),
+                                     Rsi_signals_5 = rep(0, nrow(EURUSD_DATA[[1]]))
+)
 
+# Внимание-внимание, сейчас будет  костыль ! (но он решает проблему)
+
+dates_of_5min_signals <- EURUSD_DATA[[2]][which(EURUSD_DATA[[2]]$BB_signals !=0 | EURUSD_DATA[[2]]$Rsi_signals !=0),]$dates
+
+# Даты 5-мин сигналов, которые есть в массиве с 1-минутными данными 
+dates_of_5min_signals_in_1m_array <-  EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %in% dates_of_5min_signals,]$dates
+
+# Сигналы 5-минуток записываем в массив с 1-минутными данными 
+# Вся тема с in нужна, чтоб даты совпадали
+
+EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %in% dates_of_5min_signals,
+][,5:6] <- EURUSD_DATA[[2]][EURUSD_DATA[[2]]$dates %in% dates_of_5min_signals_in_1m_array ,3:4]
+# Теперь в EURUSD_DATA[[1]][,5:6] содержатся сигналы 5-минуток (в подходящие даты)
+# Аналагочино можно добавить сигналы 15/30/60/240 - минуток. Нужно бы только побольше данных по евробаксу на 1-минутках
+
+# 15-минутки:
+EURUSD_DATA[[1]] <- cbind.data.frame(EURUSD_DATA[[1]],
+                                     BB_signals_15 = rep(0, nrow(EURUSD_DATA[[1]])),
+                                     Rsi_signals_15 = rep(0, nrow(EURUSD_DATA[[1]]))
+)
+
+dates_of_15min_signals <- EURUSD_DATA[[3]][which(EURUSD_DATA[[3]]$BB_signals !=0 | EURUSD_DATA[[3]]$Rsi_signals !=0),]$dates
+dates_of_15min_signals_in_1m_array <-  EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %in% dates_of_15min_signals,]$dates
+
+EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %in% dates_of_15min_signals,
+][,7:8] <- EURUSD_DATA[[3]][EURUSD_DATA[[3]]$dates %in% dates_of_15min_signals_in_1m_array ,3:4]
+
+
+#------------------------------------------------------------------------------------------------------------------------
+
+for(i in seq(0.0001, 0.0020, by=0.0001)) print(
+  optimum_take_profit(EURUSD_DATA[[1]]$close, EURUSD_DATA[[1]]$BB_signals_15, 300, -i, T,0.2))
+
+take_pr <- 0.0020
+st_l <- 0.0010
+
+setParams(this,
+          predicted_value = EURUSD_DATA[[1]][,7],    
+          max_bars = 300)
+x <- EURUSD_DATA[[1]][,2]                        
+dataa <- data_from_xts(xts(x, EURUSD_DATA[[1]][,1])) 
+
+setData(this, dataa)
+system.time(perform(this)) # 140 сек на 850k 1-min свечках. Это с 2019 года
+getReport(this)
+plotPnL(this)
+getTrades(this)
+
+mean(getTrades(this)[[2]] - getTrades(this)[[1]]) # средняя жизнь сделки
+sum(getTrades(this)[[5]] < 0) / length(getTrades(this)[[5]]) # Процент неудачных
 
