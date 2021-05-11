@@ -288,16 +288,17 @@ EURUSD <- list()
     getSymbols
 }
 
-for(k in 1:1){
+for(k in 1:5){
   EURUSD[[k]]$dates <- EURUSD[[k]]$dates[!is.na(EURUSD[[k]]$mat$close)]
+  EURUSD[[k]]$dates <- unique(EURUSD[[k]]$dates)
   EURUSD[[k]]$mat$close <- (EURUSD[[k]]$mat$close[!is.na(EURUSD[[k]]$mat$close)])
-  
+  EURUSD[[k]]$mat$close <- EURUSD[[k]]$mat$close[1:length(EURUSD[[k]]$dates)]
   
   EURUSD_DATA[[k]] <- data.frame(
-    dates = EURUSD[[k]]$dates,
+    dates = EURUSD[[k]]$dates[1:(length(EURUSD[[k]]$mat$close))],
     close = EURUSD[[k]]$mat$close,
-    BB_signals = bb_stratagy_signals(EURUSD[[k]]$mat$close, length(EURUSD[[k]]$dates)),
-    Rsi_signals = rsi_stratagy_signals(EURUSD[[k]]$mat$close, length(EURUSD[[k]]$dates))
+    BB_signals = bb_stratagy_signals(EURUSD[[k]]$mat$close, length(EURUSD[[k]]$mat$close)),
+    Rsi_signals = rsi_stratagy_signals(EURUSD[[k]]$mat$close, length(EURUSD[[k]]$mat$close))
   )
 }
 rm(EURUSD)
@@ -412,7 +413,6 @@ EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %in% dates_of_5min_signals,
 # Теперь в EURUSD_DATA[[1]][,5:6] содержатся сигналы 5-минуток (в подходящие даты)
 # Аналагочино можно добавить сигналы 15/30/60/240 - минуток. Нужно бы только побольше данных по евробаксу на 1-минутках
 
-# 15-минутки:
 EURUSD_DATA[[1]] <- cbind.data.frame(EURUSD_DATA[[1]],
                                      BB_signals_15 = rep(0, nrow(EURUSD_DATA[[1]])),
                                      Rsi_signals_15 = rep(0, nrow(EURUSD_DATA[[1]]))
@@ -424,18 +424,52 @@ dates_of_15min_signals_in_1m_array <-  EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %
 EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %in% dates_of_15min_signals,
 ][,7:8] <- EURUSD_DATA[[3]][EURUSD_DATA[[3]]$dates %in% dates_of_15min_signals_in_1m_array ,3:4]
 
+EURUSD_DATA[[1]] <- cbind.data.frame(EURUSD_DATA[[1]],
+                                     BB_signals_30 = rep(0, nrow(EURUSD_DATA[[1]])),
+                                     Rsi_signals_30 = rep(0, nrow(EURUSD_DATA[[1]]))
+)
+
+dates_of_30min_signals <- EURUSD_DATA[[4]][which(EURUSD_DATA[[4]]$BB_signals !=0 | EURUSD_DATA[[4]]$Rsi_signals !=0),]$dates
+dates_of_30min_signals_in_1m_array <-  EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %in% dates_of_30min_signals,]$dates
+
+EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %in% dates_of_30min_signals,
+][,9:10] <- EURUSD_DATA[[4]][EURUSD_DATA[[4]]$dates %in% dates_of_30min_signals_in_1m_array ,3:4]
+
+EURUSD_DATA[[1]] <- cbind.data.frame(EURUSD_DATA[[1]],
+                                     BB_signals_60 = rep(0, nrow(EURUSD_DATA[[1]])),
+                                     Rsi_signals_60 = rep(0, nrow(EURUSD_DATA[[1]]))
+)
+
+dates_of_60min_signals <- EURUSD_DATA[[5]][which(EURUSD_DATA[[5]]$BB_signals !=0 | EURUSD_DATA[[5]]$Rsi_signals !=0),]$dates
+dates_of_60min_signals_in_1m_array <-  EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %in% dates_of_60min_signals,]$dates
+
+EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %in% dates_of_60min_signals,
+][,11:12] <- EURUSD_DATA[[5]][EURUSD_DATA[[5]]$dates %in% dates_of_60min_signals_in_1m_array ,3:4]
+
+EURUSD_DATA[[1]] <- cbind.data.frame(EURUSD_DATA[[1]],
+                                     BB_signals_240 = rep(0, nrow(EURUSD_DATA[[1]])),
+                                     Rsi_signals_240 = rep(0, nrow(EURUSD_DATA[[1]]))
+)
+
+dates_of_240min_signals <- EURUSD_DATA[[6]][which(EURUSD_DATA[[6]]$BB_signals !=0 | EURUSD_DATA[[6]]$Rsi_signals !=0),]$dates
+dates_of_240min_signals_in_1m_array <-  EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %in% dates_of_240min_signals,]$dates
+
+EURUSD_DATA[[1]][EURUSD_DATA[[1]]$dates %in% dates_of_240min_signals,
+][,13:14] <- EURUSD_DATA[[6]][EURUSD_DATA[[6]]$dates %in% dates_of_240min_signals_in_1m_array ,3:4]
+
+
 
 #------------------------------------------------------------------------------------------------------------------------
 
 for(i in seq(0.0001, 0.0020, by=0.0001)) print(
-  optimum_take_profit(EURUSD_DATA[[1]]$close, EURUSD_DATA[[1]]$BB_signals_15, 300, -i, T,0.2))
+  optimum_take_profit(EURUSD_DATA[[1]]$close, EURUSD_DATA[[1]]$BB_signals_30, 600, -i, T,0.25))
 
-take_pr <- 0.0020
-st_l <- 0.0010
+take_pr <- 0.0023
+st_l <- 0.0009
 
 setParams(this,
-          predicted_value = EURUSD_DATA[[1]][,7],    
-          max_bars = 300)
+          predicted_value = EURUSD_DATA[[1]]$BB_signals_30,    
+          max_bars = 600)
 x <- EURUSD_DATA[[1]][,2]                        
 dataa <- data_from_xts(xts(x, EURUSD_DATA[[1]][,1])) 
 
